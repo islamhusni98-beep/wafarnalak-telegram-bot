@@ -1,0 +1,46 @@
+name: Publish due offers
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 11,17 * * *"
+      timezone: "Africa/Cairo"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-telegram-offers
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Publish offers that are due
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: "@WafarnalakMasr"
+        run: python scripts/publish_offers.py
+
+      - name: Save published offer IDs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/published.json
+          if git diff --cached --quiet; then
+            echo "No published offer IDs to save."
+            exit 0
+          fi
+          git commit -m "Record published offers"
+          git push
